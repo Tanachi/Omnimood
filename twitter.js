@@ -1,13 +1,18 @@
 const twit = require('twitter');
-var secrets = require('./json/secret.json');
-var emojiList = require('./json/codeEmoji.json');
-var faker = require('./faker.js');
+const secrets = require('./json/secret.json');
+const emojiList = require('./json/codeEmoji.json');
+const faker = require('./faker.js');
 twitter = new twit(secrets[0]);
-var tweetUpdate ={};
 var tweets = [];
 var tweetCount = 15;
+const mongoose = require('mongoose');
+const Country = require('./models/countries');
+const assert = require('assert');
+const bluebird = require('bluebird');
+mongoose.Promise = global.Promise;
 twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (stream) {
   stream.on('data', function (tweet) {
+    var tweetUpdate ={};
     if(tweet.coordinates) { // if the tweet has coordinates
       if(tweet.coordinates !== null) { // if the coordinates are not null
         var coordinates = {lat: tweet.coordinates.coordinates[1], long: tweet.coordinates.coordinates[0]};
@@ -21,7 +26,7 @@ twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (str
         var text = tweet.text;
         text = text.match(new RegExp(ranges.join('|'), 'g'));
         if(text) { // if there's an emoji found
-          if(tweet.place.country){ //if there is country location data(still crashes)
+          if(tweet.place && tweet.place.country){ //if there is country location data(still crashes)
             tweets.push(
               {
                 text: text,
@@ -33,7 +38,17 @@ twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (str
                 country: tweet.place.country
               }
             );
-            var mood = 0; // total mood for the tweet
+            var newJapan = '日本';
+            var newRussia = 'Россия';
+            var newChina = '中华人民共和国';
+            var saudiArabia = 'المملكة العربية السعودية';
+            var thailand = 'ประเทศไทย';
+            var newBrazil = "Brasil";
+            var newMexico = 'México';
+            var newTurkey = 'Türkiye';
+            var worstKora = '대한민국';
+            var newKuwait = 'دولة الكويت';
+            var amount = 0; // total mood for the tweet
             // surrogate pairs: (output like this)
             // multiple emojis: [ '\\uD83D\\uDE04', '\\uD83D\\uDC96', '\\uD83D\\uDE3B' ]
             // only one emoji: [ '\\uD83D\\uDE02' ]
@@ -49,7 +64,7 @@ twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (str
                   codeTweets[emojiList[surrogate].name] =  codeTweets[emojiList[surrogate].name] + 1;
                 }
                 else{ // IF there is no key with the emoji name
-                  mood += 1;
+                  amount += 1;
                   codeTweets[emojiList[surrogate].name] = 1;
                 }
               }
@@ -67,18 +82,35 @@ twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (str
                     updateCountry[pairs] = 1;
                   }
                 }
-                tweetUpdate[tweet.place.country].mood += mood; // combines the mood scores of both
+                tweetUpdate[tweet.place.country].amount += amount; // combines the mood scores of both
               }
               else{ // If there is no country key in the object
                 // sets the country twitter and mood to the new tweet
                 tweetUpdate[tweet.place.country] = codeTweets;
-                tweetUpdate[tweet.place.country].mood = mood;
+                tweetUpdate[tweet.place.country].amount = amount;
               }
               tweetCount --; // Decreases the tweeter count before sending to server.
               if(tweetCount === 0){ //sends the tweet data and resets the count
                 tweetCount = 15;
+                // for(var sendTwitter in tweetUpdate){
+                //   console.log(tweetUpdate[sendTwitter]);
+                // }
                 console.log(tweetUpdate);
-                tweetUpdate = {};
+                for(var tweetCountry in tweetUpdate){
+                  var query = Country.findOne({name: tweetCountry});
+                  assert.equal(query.exec().constructor, global.Promise);
+                  query.then(function(country) {
+                    if(country && country.name !== undefined){
+                      var emojiData = country.emoji;
+                      var countryData = tweetUpdate[country.name];
+                      for(var emojiSend in countryData){
+                        emojiData[emojiSend] += countryData[emojiSend];
+                      }
+                      Country.update({name: country.name}, {$set: {emoji: emojiData}}, function(argument) {
+                      });
+                    }
+                  })
+                }
               }
             }
           }
@@ -88,7 +120,7 @@ twitter.stream('statuses/filter', {'locations':'-180,-90,180,90'}, function (str
   });
 
   stream.on('error', function (error) {
-    setTimeout(faker, 1000);
+    throw error;
   });
 });
 

@@ -20,6 +20,12 @@ app.get('/countries/api', (req, res) => {
   .then(results => res.json(results));
 });
 
+app.get('/test', (req, res) => {
+  Country
+  .find({name: "China"})
+  .then(results => res.json(results));
+});
+
 app.get('/api/tweets', (req, res) => {
   res.json(tweets);
 });
