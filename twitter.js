@@ -6,6 +6,7 @@ const Country = require('./models/countries');
 const Timeline = require('./models/timeline');
 const emojiValues = require('./json/emoji.json');
 const bluebird = require('bluebird');
+const CountryList = require('./json/country2DigitToNumber.json');
 twitter = new twit(secrets[0]);
 var tweetUpdate ={};
 var tweets = [];
@@ -77,6 +78,8 @@ function getEmoji(tweet) {
 }
 
 function parseTweet(tweetArr, emojis, coordinates, date, tweet, codeTweets, emojiList, tweetUpdate) {
+  if(tweet.entities.hashtags.length > 0 && tweet.place.country === "Indonesia")
+    console.log(tweet.entities.hashtags);
   tweetArr.push(
     {
       emojis: emojis,
@@ -101,6 +104,10 @@ function parseTweet(tweetArr, emojis, coordinates, date, tweet, codeTweets, emoj
     return '\\u' + emoji.charCodeAt(0).toString(16).toUpperCase() + '\\u' + emoji.charCodeAt(1).toString(16).toUpperCase();
   });
   // printing surrogate pairs
+  if(!CountryList[tweet.place.country_code]){
+    console.log(tweet.place.country);
+    console.log(tweet.place.country_code);
+  }
   surrogate.forEach((surrogate) => {
     if(emojiList[surrogate]){
       var emojiName = codeTweets[emojiList[surrogate].name]
@@ -188,17 +195,19 @@ function livingDatabase(tweetUpdate, countEmoji, argCount){
       for(var countries in tweetUpdate){
         Country.findOne({name: countries})
         .then(function(country) {
-          if(country)
+          if(country){
             var emojiData = country.emoji;
             var countryData = tweetUpdate[country.name];
-          for(var emojis in countryData){
-            emojiData[emojis] += countryData[emojis];
+            for(var emojis in countryData){
+              emojiData[emojis] += countryData[emojis];
+            }
+            country.mood = calculateMood(emojiData);
+            country.emoji = emojiData;
+            country.markModified('emoji');
+            country.save();
           }
-          country.mood = calculateMood(emojiData);
-          country.emoji = emojiData;
-          country.markModified('emoji');
-          country.save();
         });
+
       }
     });
   });
