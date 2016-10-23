@@ -26,7 +26,6 @@ var         outlineDefault = "#eeeeee",
        }
 
        if (moodChanged) {
-
           d3.select("path#cc" + thisMoodValue.countryId)
              .data([1, 1, 2])
              .style("fill", "white")
