@@ -299,10 +299,6 @@ angular.module("omniMood")
                 .style("fill", timeScale(countries[country][9] * 10));
           }
           d3.select(timeSelect)
-            .on('mousemove', function(){
-              var timePlace = document.getElementById("timeRange").value;
-              textSelect.innerHTML = timeData.times[timePlace];
-            })
             .on('change', function(stuff){
               var timePlace = document.getElementById("timeRange").value;
               textSelect.innerHTML = timeData.times[timePlace];
